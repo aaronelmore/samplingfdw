@@ -1,39 +1,35 @@
 import logging
 from multicorn.utils import log_to_postgres
 import sys
-from typing import Type, Dict
+from typing import Type, Dict, Callable
 
 from samplingfdw.sampling_strategy import SamplingStrategy
 
 
 class _SamplingStrategyRegistry:
-    def __init__(self) -> None:
+    def __init__(self):  # type: () -> None
         self.registry = {}  # type: Dict[str, Type[SamplingStrategy]]
 
-    def register(self, name: str):
-        def wrapper(sampling_strategy: Type[SamplingStrategy]
-                    ) -> Type[SamplingStrategy]:
-            if not isinstance(sampling_strategy, SamplingStrategy):
-                log_to_postgres(
-                    logging.ERROR,
-                    "Sampling stragegy {} should be a subclass of class SamplingStrategy".
-                    format(name))
+    def register(self, name):
+        # type: (str) -> Callable[[Type[SamplingStrategy]], Type[SamplingStrategy]]
+        def wrapper(sampling_strategy):
+            # type: (Type[SamplingStrategy]) -> Type[SamplingStrategy]
             self._set_strategy(name, sampling_strategy)
             return sampling_strategy
 
         return wrapper
 
-    def _set_strategy(self, name: str,
-                      strategy: Type[SamplingStrategy]) -> None:
+    def _set_strategy(self, name, strategy):
+        # type: (str, Type[SamplingStrategy]) -> None
         if name in self.registry:
-            log_to_postgres(logging.WARNING,
-                            "Overwriting registered strategy for " + name)
+            log_to_postgres("Overwriting registered strategy for " + name,
+                            logging.WARNING)
         self.registry[name] = strategy
 
-    def get_strategy(self, name: str) -> Type[SamplingStrategy]:
+    def get_strategy(self, name):  # type: (str) -> Type[SamplingStrategy]
         if name not in self.registry:
-            log_to_postgres(logging.ERROR,
-                            "No strategy registered for " + name)
+            log_to_postgres("No strategy registered for " + name,
+                            logging.ERROR)
         return self.registry[name]
 
 
