@@ -20,7 +20,7 @@ class RemoteSamplingStrategy(SamplingStrategy):
         row_id_column = self.options.get("primary_key", None)
         if row_id_column is None:
             log_to_postgres(
-                "You need to declare a primary key option in order to use the write API"
+                "You need to declare a primary_key option in order to use the write API"
             )
         return row_id_column
 

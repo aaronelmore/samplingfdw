@@ -38,11 +38,10 @@ class SamplingFdw(ForeignDataWrapper):
             options["sampling_strategy"])(self.table_name, options, columns)
         self.registry[options["name"]] = self
 
-        with self.remote_connection:
-            with self.local_connection:
-                self.rows_stored_locally = self.sampling_strategy.on_open(
-                    self.remote_connection.cursor(),
-                    self.local_connection.cursor())
+        with self.remote_connection, self.local_connection:
+            self.rows_stored_locally = self.sampling_strategy.on_open(
+                self.remote_connection.cursor(),
+                self.local_connection.cursor())
 
     def execute(self, quals, columns, pathkeys=[]):
         # type: (List[Qual], List[str], List[SortKey]) -> Iterable[Any]
@@ -52,11 +51,10 @@ class SamplingFdw(ForeignDataWrapper):
         if local_results is not None:
             return local_results
 
-        with self.remote_connection:
+        with self.remote_connection, self.local_connection:
             remote_results = self.sampling_strategy.fetch_remotely(
                 self.remote_connection.cursor(), quals, columns, pathkeys)
-        remote_results, remote_results_copy = itertools.tee(remote_results)
-        with self.local_connection:
+            remote_results, remote_results_copy = itertools.tee(remote_results)
             self.rows_stored_locally += (
                 self.sampling_strategy.store_results_locally(
                     self.local_connection.cursor(), remote_results))
@@ -67,30 +65,27 @@ class SamplingFdw(ForeignDataWrapper):
         return self.sampling_strategy.rowid_column
 
     def insert(self, values):  # type: (Dict[str, Any]) -> Dict[str, Any]
-        with self.local_connection:
+        with self.local_connection, self.remote_connection:
             self.rows_stored_locally += self.sampling_strategy.insert_locally(
                 self.local_connection.cursor(), values)
 
-        with self.remote_connection:
             return self.sampling_strategy.insert_remotely(
                 self.remote_connection.cursor(), values)
 
     def update(self, oldvalues, newvalues):
         # type: (Dict[str, Any], Dict[str, Any]) -> Dict[str, Any]
-        with self.local_connection:
+        with self.local_connection, self.remote_connection:
             self.rows_stored_locally += self.sampling_strategy.update_locally(
                 self.local_connection.cursor(), oldvalues, newvalues)
 
-        with self.remote_connection:
             return self.sampling_strategy.update_remotely(
                 self.remote_connection.cursor(), oldvalues, newvalues)
 
     def delete(self, oldvalues):  # type: (Dict[str, Any]) -> None
-        with self.local_connection:
+        with self.local_connection, self.remote_connection:
             self.rows_stored_locally -= self.sampling_strategy.delete_locally(
                 self.local_connection.cursor(), oldvalues)
 
-        with self.remote_connection:
             self.sampling_strategy.delete_remotely(
                 self.remote_connection.cursor(), oldvalues)
 
@@ -145,12 +140,11 @@ class MetadataFdw(ForeignDataWrapper):
         sampling_fdw = SamplingFdw.registry[oldvalues["name"]]
         oldcount = oldvalues["rows_stored_locally"]
         newcount = newvalues["rows_stored_locally"]
-        with sampling_fdw.remote_connection:
-            with sampling_fdw.local_connection:
-                remote_cursor = sampling_fdw.remote_connection.cursor()
-                local_cursor = sampling_fdw.local_connection.cursor()
-                sampling_fdw.rows_stored_locally = (
-                    sampling_fdw.sampling_strategy.fetch_more_rows(
-                        remote_cursor, local_cursor, oldcount, newcount))
+        with sampling_fdw.remote_connection, sampling_fdw.local_connection:
+            remote_cursor = sampling_fdw.remote_connection.cursor()
+            local_cursor = sampling_fdw.local_connection.cursor()
+            sampling_fdw.rows_stored_locally = (
+                sampling_fdw.sampling_strategy.fetch_more_rows(
+                    remote_cursor, local_cursor, oldcount, newcount))
         newvalues["rows_stored_locally"] = sampling_fdw.rows_stored_locally
         return newvalues
