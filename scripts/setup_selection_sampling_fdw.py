@@ -22,15 +22,28 @@ def main():
 
     conn = psycopg2.connect(dbname=DBNAME)
     cursor = conn.cursor()
-    cursor.execute("CREATE EXTENSION multicorn")
-    cursor.execute("""
-            CREATE SERVER sampling_srv FOREIGN DATA WRAPPER multicorn options(
-              wrapper 'samplingfdw.SamplingFdw'
-            );
-            """)
+
+    cursor.execute("SELECT extname FROM pg_extension")
+    for row in cursor:
+        if row[0] == "multicorn":
+            break
+    else:
+        cursor.execute("CREATE EXTENSION multicorn")
+
+    cursor.execute("SELECT srvname FROM pg_foreign_server")
+    for row in cursor:
+        if row[0] == "sampling_srv":
+            break
+    else:
+        cursor.execute("""
+                CREATE SERVER sampling_srv FOREIGN DATA WRAPPER multicorn options(
+                  wrapper 'samplingfdw.SamplingFdw'
+                );
+                """)
+
     cursor.execute("""
             CREATE FOREIGN TABLE {} (
-              id INTEGER PRIMARY KEY,
+              id INTEGER,
               str_column VARCHAR(3),
               int_column INTEGER
             ) SERVER sampling_srv OPTIONS (
