@@ -40,6 +40,9 @@ def main():
             );
     """.format(LOCAL_TABLE_NAME, REMOTE_TABLE_NAME, DBNAME, DBNAME, sys.argv[
         1], sys.argv[2]))
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 
 if __name__ == "__main__":

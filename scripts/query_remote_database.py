@@ -65,6 +65,9 @@ def main():
             cursor.execute(
                 "INSERT INTO {} (str_column, int_column) VALUES (%s, %s)".
                 format(TABLE_NAME), (str_column, int_column))
+    conn.commit()
+    cursor.close()
+    conn.close()
     print(time.time() - start_time)
 
 
