@@ -6,7 +6,7 @@ from typing import Type, Dict, Callable
 from samplingfdw.sampling_strategy import SamplingStrategy
 
 
-class _SamplingStrategyRegistry:
+class _SamplingStrategyRegistry(object):
     """A registry that allows SamplingStrategy classes to be registered and
     looked up.
     """

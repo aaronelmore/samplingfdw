@@ -241,7 +241,7 @@ class MetadataFdw(ForeignDataWrapper):
         rows_stored_locally -- the number of rows stored in the local database for the SamplingFdw
     """
 
-    def execute(self, quals, columns, pathkeys=[]):
+    def execute(self, quals, columns, sortkeys=None):
         # type: (List[Qual], List[str], List[SortKey]) -> Iterable[Any]
         """Fetches metadata about all of the active SamplingFdws"""
         for name, sampling_fdw in SamplingFdw.registry.items():
@@ -265,12 +265,12 @@ class MetadataFdw(ForeignDataWrapper):
             "{} does not support deletion".format(self.__class__.__name__))
 
     def update(self, oldvalues, newvalues):
+        # type: (Dict[str, Any], Dict[str, Any]) -> Dict[str, Any]
         """This function allows users to update the value of
         rows_stored_locally, which notifies the sampling strategy that it
         should request more rows from the remote database and store them in the
         local database.
         """
-        # type: (Dict[str, Any], Dict[str, Any]) -> Dict[str, Any]
         for key in oldvalues:
             if (oldvalues[key] != newvalues[key] and
                     key != "rows_stored_locally"):

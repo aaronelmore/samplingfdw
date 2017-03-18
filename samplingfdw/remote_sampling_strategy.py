@@ -1,7 +1,7 @@
 from multicorn import Qual, SortKey
 from multicorn.utils import log_to_postgres
 import psycopg2
-from typing import List, Iterable, Any, Optional, Dict
+from typing import List, Iterable, Any, Dict
 
 from samplingfdw.sampling_strategy import SamplingStrategy
 from samplingfdw.sampling_strategy_registry import SamplingStrategyRegistry
@@ -17,12 +17,12 @@ class RemoteSamplingStrategy(SamplingStrategy):
                        This options is required for INSERT, UPDATE and DELETE operations
     """
 
-    def fetch_remotely(self, remote_cursor, quals, columns, pathkeys=[]):
-        # type: (psycopg2.cursor, List[Qual], List[str], List[SortKey]) -> Optional[Iterable[Any]]
+    def fetch_remotely(self, remote_cursor, quals, columns, sortkeys=None):
+        # type: (psycopg2.cursor, List[Qual], List[str], List[SortKey]) -> Iterable[Any]
         """Executes the supplied query against the remote database and returns
         the result.
         """
-        self.execute_fetch_statement(remote_cursor, quals, columns, pathkeys)
+        self.execute_fetch_statement(remote_cursor, quals, columns, sortkeys)
         for result in remote_cursor:
             yield dict(zip(columns, result))
 
