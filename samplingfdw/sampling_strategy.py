@@ -15,29 +15,38 @@ class SamplingStrategy(object):
         self.options = options
         self.columns = columns
 
-    def execute_fetch_statement(self, cursor, quals, columns, sortkeys):
-        # type: (psycopg2.cursor, List[Qual], List[str], List[SortKey]) -> None
+    @staticmethod
+    def execute_fetch_statement(cursor,
+                                table_name,
+                                quals,
+                                columns,
+                                sortkeys=None):
+        # type: (psycopg2.cursor, str, List[Qual], List[str], List[SortKey]) -> None
         """Converts the supplied quals, columns, and sortkeys to a fetch
         statement, and executes it on the supplied cursor.
+
+        The results can be obtained by iterating through the cursor.
         """
-        select_clause = ", ".join(columns) if len(columns) > 0 else "*"
-        statement = "SELECT {} FROM {}".format(select_clause, self.table_name)
+        select_clause = ", ".join(columns) if columns else "*"
+        statement = "SELECT {} FROM {}".format(select_clause, table_name)
         if len(quals) > 0:
-            statement += " " + " AND ".join(str(qual) for qual in quals)
+            statement += " WHERE " + " AND ".join(str(qual) for qual in quals)
         cursor.execute(statement + ";")
 
-    def execute_insert_statement(self, cursor, values):
-        # type: (psycopg2.cursor, Dict[str, Any]) -> None
+    @staticmethod
+    def execute_insert_statement(cursor, table_name, values):
+        # type: (psycopg2.cursor, str, Dict[str, Any]) -> int
         """Converts the supplied values into an insert statement and executes
         it on the supplied cursor.
         """
         statement = ("INSERT INTO {} {} VALUES {}".format(
-            self.table_name,
-            tuple(values.keys()), tuple(["%s" for _ in values])))
+            table_name, tuple(values.keys()), tuple(["%s" for _ in values])))
         cursor.execute(statement, values.values())
+        return cursor.rowcount
 
-    def execute_update_statement(self, cursor, oldvalues, newvalues):
-        # type: (psycopg2.cursor, Dict[str, Any], Dict[str, Any]) -> None
+    @staticmethod
+    def execute_update_statement(cursor, table_name, oldvalues, newvalues):
+        # type: (psycopg2.cursor, str, Dict[str, Any], Dict[str, Any]) -> int
         """Converts the supplied values into an update statement and executes
         it on the supplied cursor.
         """
@@ -46,20 +55,72 @@ class SamplingStrategy(object):
         where_clause = " AND ".join("{} = %s".format(value)
                                     for value in oldvalues.keys())
         statement = "UPDATE {} SET {} WHERE {}".format(
-            self.table_name, newvalue_clause, where_clause)
+            table_name, newvalue_clause, where_clause)
         cursor.execute(statement,
                        list(newvalues.values()) + list(oldvalues.values()))
+        return cursor.rowcount
 
-    def execute_delete_statement(self, cursor, oldvalues):
-        # type: (psycopg2.cursor, Dict[str, Any]) -> None
+    @staticmethod
+    def execute_delete_statement(cursor, table_name, oldvalues):
+        # type: (psycopg2.cursor, Dict[str, Any]) -> int
         """Converts the supplied values into a delete statement and executes it
         on the supplied cursor.
         """
         where_clause = " AND ".join("{} = %s".format(value)
                                     for value in oldvalues.keys())
-        statement = "DELETE FROM {} WHERE {}".format(self.table_name,
-                                                     where_clause)
+        statement = "DELETE FROM {} WHERE {}".format(table_name, where_clause)
         cursor.execute(statement, oldvalues.values())
+        return cursor.rowcount
+
+    @staticmethod
+    def table_exists(cursor, table_name):
+        # type: (psycopg2.cursor, str) -> bool
+        """Returns true if there is a table with the supplied name in the
+        database associated with the supplied cursor.
+        """
+        cursor.execute(
+            "SELECT EXISTS(SELECT * FROM information_schema.tables WHERE table_name=%s)",
+            (table_name, ))
+        return cursor.fetchone()[0]
+
+    @staticmethod
+    def create_table(cursor, table_name, columns, exists_ok=False):
+        # type (psycopg2.cursor, str, List[ColumnDefinition], bool) -> None
+        """Creates a table with the specified name and column definitions in
+        the database associated with the supplied cursor.
+
+        If exists_ok is false, this command will fail if the table already
+        exists.
+        """
+        create_table_statement = "CREATE TABLE"
+        if exists_ok:
+            create_table_statement += " IF NOT EXISTS"
+        create_table_statement += " {}({})".format(table_name, ", ".join(
+            column.to_statement() for column in columns))
+        cursor.execute(create_table_statement)
+
+    @staticmethod
+    def get_count(cursor, table_name, quals=None):
+        # type: (psycopg2.cursor, str, List[Qual]) -> int
+        """Returns the number of rows in the table specified by table_name.
+
+        If quals is supplied, these act as qualifiers for the count.
+        """
+        count_statement = "SELECT COUNT(*) FROM {}".format(table_name)
+        if quals:
+            count_statement += " WHERE " + " AND ".join(
+                str(qual) for qual in quals)
+        cursor.execute(count_statement)
+        return cursor.fetchone()[0]
+
+    @staticmethod
+    def insert_values(cursor, table_name, rows):
+        # type: (psycopg2.cursor, str, Iterable[Any]) -> None
+        """Inserts the supplied rows into the table specified by table_name.
+        """
+        insert_statement = "INSERT INTO {} VALUES %s".format(table_name)
+        psycopg2.extras.execute_values(
+            cursor, insert_statement, rows, page_size=100)
 
     def on_open(self, remote_cursor, local_cursor):
         # type: (psycopg2.cursor, psycopg2.cursor) -> int
@@ -73,6 +134,9 @@ class SamplingStrategy(object):
         This means they are created when the first query is made against the
         FDW, and destroyed when the connection to the Postgres database is
         closed.
+
+        This function returns the number of rows in the local table after it is
+        set up.
         """
         return 0
 

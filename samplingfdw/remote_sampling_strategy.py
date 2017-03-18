@@ -22,7 +22,8 @@ class RemoteSamplingStrategy(SamplingStrategy):
         """Executes the supplied query against the remote database and returns
         the result.
         """
-        self.execute_fetch_statement(remote_cursor, quals, columns, sortkeys)
+        self.execute_fetch_statement(remote_cursor, self.table_name, quals,
+                                     columns, sortkeys)
         for result in remote_cursor:
             yield dict(zip(columns, result))
 
@@ -40,17 +41,19 @@ class RemoteSamplingStrategy(SamplingStrategy):
         # type: (psycopg2.cursor, Dict[str, Any]) -> Dict[str, Any]
         """Executes the supplied insert statement against the remote databse.
         """
-        self.execute_insert_statement(remote_cursor, values)
+        self.execute_insert_statement(remote_cursor, self.table_name, values)
         return values
 
     def update_remotely(self, remote_cursor, oldvalues, newvalues):
         # type: (psycopg2.cursor, Dict[str, Any], Dict[str, Any]) -> Dict[str, Any]
         """Executes the supplied update statement against the remote databse."""
-        self.execute_update_statement(remote_cursor, oldvalues, newvalues)
+        self.execute_update_statement(remote_cursor, self.table_name,
+                                      oldvalues, newvalues)
         return newvalues
 
     def delete_remotely(self, remote_cursor, oldvalues):
         # type: (psycopg2.cursor, Dict[str, Any]) -> None
         """Executes the supplied delete statement against the remote databse.
         """
-        self.execute_delete_statement(remote_cursor, oldvalues)
+        self.execute_delete_statement(remote_cursor, self.table_name,
+                                      oldvalues)
