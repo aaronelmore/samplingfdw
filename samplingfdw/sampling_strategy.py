@@ -39,9 +39,15 @@ class SamplingStrategy(object):
         """Converts the supplied values into an insert statement and executes
         it on the supplied cursor.
         """
+        insert_values = "({})".format(
+            ", ".join(value for value in values if values[value] is not None))
+        values_placeholder = "({})".format(
+            ", ".join(["%s" for value in values if values[value] is not None]))
         statement = ("INSERT INTO {} {} VALUES {}".format(
-            table_name, tuple(values.keys()), tuple(["%s" for _ in values])))
-        cursor.execute(statement, values.values())
+            table_name, insert_values, values_placeholder))
+        cursor.execute(
+            statement,
+            [values[value] for value in values if values[value] is not None])
         return cursor.rowcount
 
     @staticmethod
@@ -181,8 +187,7 @@ class SamplingStrategy(object):
 
         This function returns the number of rows added to the database.
         """
-        raise NotImplementedError("{} does not support the writable API".
-                                  format(self.__class__.__name__))
+        return 0
 
     def insert_remotely(self, remote_cursor, values):
         # type: (psycopg2.cursor, Dict[str, Any]) -> Dict[str, Any]
@@ -201,8 +206,7 @@ class SamplingStrategy(object):
         This function returns the number of rows added to the database, if new
         rows were added.
         """
-        raise NotImplementedError("{} does not support the writable API".
-                                  format(self.__class__.__name__))
+        return 0
 
     def update_remotely(self, remote_cursor, oldvalues, newvalues):
         # type: (psycopg2.cursor, Dict[str, Any], Dict[str, Any]) -> Dict[str, Any]
@@ -220,8 +224,7 @@ class SamplingStrategy(object):
         This function returns the number of rows deleted from the local
         database.
         """
-        raise NotImplementedError("{} does not support the writable API".
-                                  format(self.__class__.__name__))
+        return 0
 
     def delete_remotely(self, remote_cursor, oldvalues):
         # type: (psycopg2.cursor, Dict[str, Any]) -> None

@@ -75,7 +75,7 @@ For a connection to a remote database:
   ) server sampling_srv options (
     sampling_strategy 'remote_sampling_strategy',
     name 'my_sampling_fdw',
-    tablename 'table',
+    table_name 'table',
     local_dname 'local_db',
     remote_host 'host',
     remote_dbname 'remote_db'
@@ -95,12 +95,12 @@ For a connection to a listing of all the active local ``SamplingFdw``s:
 
 """
 
-import glob
+import importlib
 import itertools
 import logging
 from multicorn import ForeignDataWrapper, ColumnDefinition, Qual, SortKey
 from multicorn.utils import log_to_postgres
-import os.path
+import pkgutil
 import psycopg2
 from typing import Dict, List, Iterable, Any
 
@@ -108,8 +108,10 @@ from samplingfdw.sampling_strategy_registry import SamplingStrategyRegistry
 
 # Ensure that every other python file in this directory gets included in this
 # file, so every registered SamplingStrategy will be found.
-_modules = glob.glob(os.path.dirname(__file__) + "/*.py")
-__all__ = [os.path.basename(f)[:-3] for f in _modules if os.path.isfile(f)]
+__path__ = pkgutil.extend_path(__path__, __name__)
+for _, modname, _ in pkgutil.walk_packages(
+        path=__path__, prefix=__name__ + "."):
+    importlib.import_module(modname)
 
 
 class SamplingFdw(ForeignDataWrapper):

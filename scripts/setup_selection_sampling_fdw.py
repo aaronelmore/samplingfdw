@@ -48,8 +48,9 @@ def main():
               int_column INTEGER
             ) SERVER sampling_srv OPTIONS (
               sampling_strategy 'remote_sampling_strategy',
-              tablename '{}',
-              local_dname '{}',
+              primary_key 'id',
+              table_name '{}',
+              local_dbname '{}',
               remote_dbname '{}',
               column '{}',
               column_values '{}',

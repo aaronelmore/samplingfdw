@@ -25,7 +25,7 @@ def randbool():
 
 
 def main():
-    if len(sys.argv) < 1:
+    if len(sys.argv) < 2:
         sys.stderr.write("usage: {} read_percentage\n".format(sys.argv[0]))
         sys.exit(1)
 
@@ -39,7 +39,7 @@ def main():
     for i in iters:
         if i < read_percentage:
             # read query
-            if random.random < 0.75:
+            if random.random < 0.9:
                 # equality query
                 if randbool():
                     # str_column = 'foo'
@@ -54,8 +54,8 @@ def main():
             else:
                 #range query
                 int_column_min = random.randint(0, 10000)
-                cursor.execute("SELECT * FROM {} WHERE int_column > %s",
-                               int_column_min)
+                cursor.execute("SELECT * FROM {} WHERE int_column > {};".
+                               format(TABLE_NAME, int_column_min))
                 for _ in cursor:
                     pass
         else:

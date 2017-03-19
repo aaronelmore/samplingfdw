@@ -40,7 +40,7 @@ class SelectionSamplingStrategy(SamplingStrategy):
                 format(self.options["column"],
                        self.__class__.__name__), logging.ERROR)
 
-        self.local_table_name = self.table_name + ".local"
+        self.local_table_name = "_local_" + self.table_name
         self.selection_quals = [
             Qual(self.options["column"], "=", column_value)
             for column_value in self.options["column_values"].split(",")
