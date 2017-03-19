@@ -1,2 +1,2 @@
-# lazyFDW
-A PostgreSQL FDW that allows a user to specify what order data is sent to a client when they request data from a server
+# samplingfdw
+A PostgreSQL FDW that allows a user to specify how data from a remote database is cached in a local database.
